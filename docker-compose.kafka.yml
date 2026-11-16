@@ -1,0 +1,120 @@
+# Compose project name, fixed so the stack's volumes and containers keep their names whatever
+# this folder is called. Volume names start with it: changing it gives an existing installation
+# new, empty volumes. COMPOSE_PROJECT_NAME (e.g. in .env) still takes precedence.
+name: cxo-composer
+
+include:
+  - ./docker-compose.network.yml
+
+services:
+  kafka:
+    container_name: ${CONTAINER_PREFIX:-}cxo-kafka
+    restart: unless-stopped
+    image: ${HL_INFRA_IMG_BASE_URL:-docker.io/confluentinc}/cp-kafka:7.9.2
+    ports:
+      - 29092:29092
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_NODE_ID: 1
+      CLUSTER_ID: ${CXO_KAFKA_CLUSTER_ID:-devcluster}
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@cxo-kafka:9093
+      KAFKA_LISTENER_NAMES: INTERNAL,EXTERNAL
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENERS: INTERNAL://:9092,EXTERNAL://:29092,CONTROLLER://:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://cxo-kafka:9092,EXTERNAL://${DOCKER_HOST_IP:-127.0.0.1}:29092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_JMX_PORT: 9997
+      KAFKA_JMX_OPTS: -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Djava.rmi.server.hostname=kafka0 -Dcom.sun.management.jmxremote.rmi.port=9997
+
+    healthcheck:
+      test: nc -zv localhost 29092
+      interval: 30s
+      timeout: 30s
+      retries: 3
+    volumes:
+      - kafka_data_7:/var/lib/kafka/data
+    networks:
+      cxo_network:
+        aliases:
+          - cxo-kafka
+
+  kafkaui:
+    container_name: ${CONTAINER_PREFIX:-}cxo-kafkaui
+    restart: unless-stopped
+    image: ${HL_INFRA_IMG_BASE_URL:-docker.io/conduktor}/conduktor-console:1.35.2
+    ports:
+      - "8086:8080"
+    depends_on:
+      kafkauidb:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    volumes:
+      - conduktor_data:/var/conduktor
+    environment:
+      CDK_DATABASE_URL: "postgresql://postgres:postgres@cxo-kafkauidb:5432/conduktor-console"
+      CDK_CLUSTERS_0_ID: "default"
+      CDK_CLUSTERS_0_NAME: "CxO Kafka Cluster"
+      CDK_CLUSTERS_0_COLOR: "#0013E7"
+      CDK_CLUSTERS_0_BOOTSTRAPSERVERS: cxo-kafka:9092
+    healthcheck:
+      test: curl -f http://localhost:8080 || exit 1
+      interval: 30s
+      timeout: 30s
+      start_period: 10s
+      retries: 3
+    networks:
+      cxo_network:
+        aliases:
+          - cxo-kafkaui
+
+  kafkauidb:
+    container_name: ${CONTAINER_PREFIX:-}cxo-kafkauidb
+    restart: unless-stopped
+    image: ${HL_INFRA_IMG_BASE_URL:-docker.io/library}/postgres:15-bookworm
+    environment:
+      - TZ=${CXO_TZ:-Europe/Amsterdam}
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_USER=postgres
+      - PGDATA=/data/postgres
+    healthcheck:
+      test: pg_isready -U postgres
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    volumes:
+      - kafkauidb_pgdata_15:/data/postgres
+      - ./files/kafkaui/postgres-initdb.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      cxo_network:
+        aliases:
+          - cxo-kafkauidb
+
+  # Exposes broker, topic/partition offset and consumer-group lag metrics on
+  # :9308 by talking the plain Kafka protocol (no JMX, no broker changes).
+  # Scraped by the OTel Collector — see the `cxo-kafka` job in
+  # files/monitoring/otel-collector/config.yml. Deliberately not published to
+  # the host: it is an internal scrape target, consumed via Grafana.
+  kafka-exporter:
+    container_name: ${CONTAINER_PREFIX:-}cxo-kafka-exporter
+    restart: unless-stopped
+    image: ${HL_INFRA_IMG_BASE_URL:-docker.io/danielqsj}/kafka-exporter:v1.9.0
+    command:
+      - "--kafka.server=cxo-kafka:9092"
+      - "--web.listen-address=:9308"
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      cxo_network:
+        aliases:
+          - cxo-kafka-exporter
+
+volumes:
+  kafka_data_7: null
+  conduktor_data: null
+  kafkauidb_pgdata_15: null

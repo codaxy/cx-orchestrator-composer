@@ -1,0 +1,25 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+# Scraping of CxO services is performed by the OTel Collector (see
+# files/monitoring/otel-collector/config.yml). The Collector pushes the
+# resulting metrics to Prometheus via `remote_write` after attaching the
+# `cxo_instance` resource attribute as a label. This makes the same series
+# behave identically in local Docker and in a multi-instance deployment (where multiple per-cluster Collectors converge
+# into one central Prometheus).
+#
+# `--web.enable-remote-write-receiver` is set in docker-compose.monitoring.yml
+# to accept the incoming push.
+#
+# To add a new scrape target, edit the `prometheus` receiver in the OTel
+# Collector config (NOT this file).
+
+scrape_configs:
+  # Prometheus's own metrics. Kept here because Prometheus can't push to
+  # itself; the rest of the platform's metrics arrive via remote_write.
+  - job_name: prometheus
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          service: prometheus

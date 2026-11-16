@@ -1,0 +1,738 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "description": "Auto-discovering dashboard for CxO external dependency telemetry (cxo_dependency_* metrics)",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [
+    {
+      "asDropdown": true,
+      "icon": "dashboard",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [
+        "cxo"
+      ],
+      "targetBlank": false,
+      "title": "All dashboards",
+      "type": "dashboards",
+      "url": ""
+    }
+  ],
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 100,
+      "title": "Overview",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2,
+            "pointSize": 5,
+            "showPoints": "auto",
+            "stacking": {
+              "mode": "none"
+            }
+          },
+          "unit": "reqps"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 1
+      },
+      "id": 1,
+      "title": "Request Rate per Dependency",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (dependency) (rate(cxo_dependency_request_total{environment=~\"$environment\", cxo_instance=~\"$cxo_instance\", dependency=~\"$dependency\"}[$__rate_interval]))",
+          "legendFormat": "{{ dependency }}"
+        }
+      ],
+      "description": "Outbound requests per second to each external dependency, 5-minute average."
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2,
+            "showPoints": "auto",
+            "stacking": {
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 5
+              }
+            ]
+          }
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 1
+      },
+      "id": 2,
+      "title": "Server Error Rate (%) per Dependency",
+      "description": "5xx + fault + error + timeout as % of total requests",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "100 * sum by (dependency) (rate(cxo_dependency_request_total{environment=~\"$environment\", cxo_instance=~\"$cxo_instance\", dependency=~\"$dependency\",status=~\"5xx|fault|error|timeout\"}[$__rate_interval])) / clamp_min(sum by (dependency) (rate(cxo_dependency_request_total{environment=~\"$environment\", cxo_instance=~\"$cxo_instance\", dependency=~\"$dependency\"}[$__rate_interval])), 1e-9)",
+          "legendFormat": "{{ dependency }}"
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2,
+            "showPoints": "auto",
+            "stacking": {
+              "mode": "none"
+            }
+          },
+          "unit": "percent"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 9
+      },
+      "id": 3,
+      "title": "Client Error Rate (4xx) per Dependency",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "100 * sum by (dependency) (rate(cxo_dependency_request_total{environment=~\"$environment\", cxo_instance=~\"$cxo_instance\", dependency=~\"$dependency\",status=\"4xx\"}[$__rate_interval])) / clamp_min(sum by (dependency) (rate(cxo_dependency_request_total{environment=~\"$environment\", cxo_instance=~\"$cxo_instance\", dependency=~\"$dependency\"}[$__rate_interval])), 1e-9)",
+          "legendFormat": "{{ dependency }}"
+        }
+      ],
+      "description": "Share of outbound calls returning 4xx per dependency — usually a request or configuration problem on the caller side."
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineWidth": 2,
+            "showPoints": "auto",
+            "stacking": {
+              "mode": "none"
+            }
+          },
+          "unit": "reqps"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 9
+      },
+      "id": 4,
+      "title": "Timeout Rate per Dependency",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (dependency) (rate(cxo_dependency_timeout_total{environment=~\"$environment\", cxo_instance=~\"$cxo_instance\", dependency=~\"$dependency\"}[$__rate_interval]))",
+          "legendFormat": "{{ dependency }}"
+        }
+      ],
+      "description": "Share of outbound calls that timed out, per dependency."
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 17
+      },
+      "id": 101,
+      "title": "Latency",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "drawStyle": "line",
+            "fillOpacity": 5,
+            "lineWidth": 2,
+            "showPoints": "auto",
+            "stacking": {
+              "mode": "none"
+            }
+          },
+          "unit": "s"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 18
+      },
+      "id": 5,
+      "title": "P50 Latency",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by (dependency, method, le) (rate(cxo_dependency_request_duration_seconds_bucket{environment=~\"$environment\", cxo_instance=~\"$cxo_instance\", dependency=~\"$dependency\",method=~\"$method\"}[$__rate_interval])))",
+          "legendFormat": "{{ dependency }} / {{ method }}"
+        }
+      ],
+      "description": "Median (P50) outbound call latency per dependency."
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "drawStyle": "line",
+            "fillOpacity": 5,
+            "lineWidth": 2,
+            "showPoints": "auto",
+            "stacking": {
+              "mode": "none"
+            }
+          },
+          "unit": "s"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 18
+      },
+      "id": 6,
+      "title": "P95 Latency",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (dependency, method, le) (rate(cxo_dependency_request_duration_seconds_bucket{environment=~\"$environment\", cxo_instance=~\"$cxo_instance\", dependency=~\"$dependency\",method=~\"$method\"}[$__rate_interval])))",
+          "legendFormat": "{{ dependency }} / {{ method }}"
+        }
+      ],
+      "description": "P95 outbound call latency per dependency."
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "drawStyle": "line",
+            "fillOpacity": 5,
+            "lineWidth": 2,
+            "showPoints": "auto",
+            "stacking": {
+              "mode": "none"
+            }
+          },
+          "unit": "s"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 18
+      },
+      "id": 7,
+      "title": "P99 Latency",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, sum by (dependency, method, le) (rate(cxo_dependency_request_duration_seconds_bucket{environment=~\"$environment\", cxo_instance=~\"$cxo_instance\", dependency=~\"$dependency\",method=~\"$method\"}[$__rate_interval])))",
+          "legendFormat": "{{ dependency }} / {{ method }}"
+        }
+      ],
+      "description": "P99 outbound call latency per dependency."
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 26
+      },
+      "id": 102,
+      "title": "Drill-down",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "lineWidth": 1,
+            "showPoints": "never",
+            "stacking": {
+              "mode": "normal"
+            }
+          },
+          "unit": "reqps"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 27
+      },
+      "id": 8,
+      "title": "Status Breakdown",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (dependency, status) (rate(cxo_dependency_request_total{environment=~\"$environment\", cxo_instance=~\"$cxo_instance\", dependency=~\"$dependency\",method=~\"$method\"}[$__rate_interval]))",
+          "legendFormat": "{{ dependency }} / {{ status }}"
+        }
+      ],
+      "description": "Outbound call volume broken down by response status."
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            }
+          },
+          "unit": "reqps"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Value"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 120
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 27
+      },
+      "id": 9,
+      "title": "Top Methods by Volume",
+      "type": "table",
+      "targets": [
+        {
+          "expr": "topk(10, sum by (dependency, method) (rate(cxo_dependency_request_total{environment=~\"$environment\", cxo_instance=~\"$cxo_instance\", dependency=~\"$dependency\"}[$__rate_interval])))",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "dependency": "Dependency",
+              "method": "Method",
+              "Value": "Req/s"
+            }
+          }
+        }
+      ],
+      "description": "Most-called dependency methods in the selected time range."
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 35
+      },
+      "id": 103,
+      "title": "Summary",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 10
+              },
+              {
+                "color": "red",
+                "value": 50
+              }
+            ]
+          },
+          "unit": "reqps"
+        }
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 24,
+        "x": 0,
+        "y": 36
+      },
+      "id": 10,
+      "title": "Current Request Rate",
+      "description": "Repeated per dependency — each stat box is one dependency",
+      "type": "stat",
+      "repeat": "dependency",
+      "repeatDirection": "h",
+      "maxPerRow": 6,
+      "targets": [
+        {
+          "expr": "sum(rate(cxo_dependency_request_total{environment=~\"$environment\", cxo_instance=~\"$cxo_instance\", dependency=\"$dependency\"}[5m]))",
+          "legendFormat": "{{ dependency }}"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "area"
+      }
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 40
+      },
+      "id": 104,
+      "title": "Health",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "Unhealthy",
+                  "color": "red",
+                  "index": 0
+                },
+                "1": {
+                  "text": "Healthy",
+                  "color": "green",
+                  "index": 2
+                },
+                "0.5": {
+                  "text": "Degraded",
+                  "color": "yellow",
+                  "index": 1
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#3d3f45",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.5
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "noValue": "N/A"
+        }
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 24,
+        "x": 0,
+        "y": 41
+      },
+      "id": 11,
+      "title": "Dependency Health Status",
+      "description": "Latest per-dependency health check result. Healthy=1, Degraded=0.5, Unhealthy=0. Emitted by DependencyHealthCheckPublisher registered via AddDependencyTelemetry().",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "cxo_dependency_health_status{environment=~\"$environment\", cxo_instance=~\"$cxo_instance\"}",
+          "legendFormat": "{{ name }}",
+          "instant": true
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "value_and_name",
+        "colorMode": "background",
+        "graphMode": "none"
+      }
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": [
+    "cxo",
+    "dependencies",
+    "external"
+  ],
+  "templating": {
+    "list": [
+      {
+        "current": {},
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "definition": "label_values(up, environment)",
+        "hide": 0,
+        "includeAll": false,
+        "label": "Environment",
+        "multi": false,
+        "name": "environment",
+        "options": [],
+        "query": {
+          "qryType": 1,
+          "query": "label_values(up, environment)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "current": {},
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "definition": "label_values(up{environment=~\"$environment\"}, cxo_instance)",
+        "hide": 0,
+        "includeAll": false,
+        "label": "CxO Instance",
+        "multi": false,
+        "name": "cxo_instance",
+        "options": [],
+        "query": {
+          "qryType": 1,
+          "query": "label_values(up{environment=~\"$environment\"}, cxo_instance)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "definition": "label_values(cxo_dependency_request_total{environment=~\"$environment\", cxo_instance=~\"$cxo_instance\"}, dependency)",
+        "includeAll": true,
+        "multi": true,
+        "name": "dependency",
+        "query": {
+          "qryType": 1,
+          "query": "label_values(cxo_dependency_request_total{environment=~\"$environment\", cxo_instance=~\"$cxo_instance\"}, dependency)"
+        },
+        "refresh": 2,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "definition": "label_values(cxo_dependency_request_total{environment=~\"$environment\", cxo_instance=~\"$cxo_instance\", dependency=~\"$dependency\"}, method)",
+        "includeAll": true,
+        "multi": true,
+        "name": "method",
+        "query": {
+          "qryType": 1,
+          "query": "label_values(cxo_dependency_request_total{environment=~\"$environment\", cxo_instance=~\"$cxo_instance\", dependency=~\"$dependency\"}, method)"
+        },
+        "refresh": 2,
+        "sort": 1,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "CxO External Dependencies",
+  "uid": "cxo-external-dependencies",
+  "version": 1
+}

@@ -1,0 +1,610 @@
+# Partial docker-compose file, cannot be used on its own
+services:
+  partymanagement:
+    container_name: ${CONTAINER_PREFIX:-}cxo-party-management
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_HTTP_PORTS=8080
+    image: ${CXO_IMG_BASE_URL:-ghcr.io/codaxy}/cxo-party-management:${CXO_PARTY_MANAGEMENT_TAG:-${CXO_TAG:-latest}}
+
+    ports:
+      - "40632:8080"
+    restart: unless-stopped
+    secrets:
+      - source: party-management-appsettings
+        target: /app/appsettings-mounted/0/appsettings.json
+    depends_on:
+      db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-sS",
+          "--fail",
+          "http://localhost:8080/health",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      cxo_network:
+        aliases:
+          - cxo-party-management
+
+  digitalidentity:
+    container_name: ${CONTAINER_PREFIX:-}cxo-digital-identity
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_HTTP_PORTS=8080
+    image: ${CXO_IMG_BASE_URL:-ghcr.io/codaxy}/cxo-digital-identity:${CXO_DIGITAL_IDENTITY_TAG:-${CXO_TAG:-latest}}
+
+    ports:
+      - "40720:8080"
+    restart: unless-stopped
+    secrets:
+      - source: digital-identity-appsettings
+        target: /app/appsettings-mounted/0/appsettings.json
+    depends_on:
+      db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-sS",
+          "--fail",
+          "http://localhost:8080/health",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      cxo_network:
+        aliases:
+          - cxo-digital-identity
+
+  partyrolemanagement:
+    container_name: ${CONTAINER_PREFIX:-}cxo-party-role-management
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_HTTP_PORTS=8080
+    image: ${CXO_IMG_BASE_URL:-ghcr.io/codaxy}/cxo-party-role-management:${CXO_PARTY_ROLE_MANAGEMENT_TAG:-${CXO_TAG:-latest}}
+
+    ports:
+      - "40669:8080"
+    restart: unless-stopped
+    secrets:
+      - source: party-role-management-appsettings
+        target: /app/appsettings-mounted/0/appsettings.json
+    depends_on:
+      db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-sS",
+          "--fail",
+          "http://localhost:8080/health",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      cxo_network:
+        aliases:
+          - cxo-party-role-management
+
+  customermanagement:
+    container_name: ${CONTAINER_PREFIX:-}cxo-customer-management
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_HTTP_PORTS=8080
+    image: ${CXO_IMG_BASE_URL:-ghcr.io/codaxy}/cxo-customer-management:${CXO_CUSTOMER_MANAGEMENT_TAG:-${CXO_TAG:-latest}}
+
+    ports:
+      - "40629:8080"
+    restart: unless-stopped
+    secrets:
+      - source: customer-management-appsettings
+        target: /app/appsettings-mounted/0/appsettings.json
+    depends_on:
+      db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-sS",
+          "--fail",
+          "http://localhost:8080/health",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      cxo_network:
+        aliases:
+          - cxo-customer-management
+
+  userrolesandpermissions:
+    container_name: ${CONTAINER_PREFIX:-}cxo-user-roles-and-permissions
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_HTTP_PORTS=8080
+    image: ${CXO_IMG_BASE_URL:-ghcr.io/codaxy}/cxo-user-roles-and-permissions:${CXO_USER_ROLES_AND_PERMISSIONS_TAG:-${CXO_TAG:-latest}}
+
+    ports:
+      - "40672:8080"
+    restart: unless-stopped
+    secrets:
+      - source: user-roles-and-permissions-appsettings
+        target: /app/appsettings-mounted/0/appsettings.json
+    depends_on:
+      db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: [
+          "CMD",
+          "curl",
+          "-sS",
+          "--fail",
+          "http://localhost:8080/health", # NOTE: no /tmf-api part
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      cxo_network:
+        aliases:
+          - cxo-user-roles-and-permissions
+
+  servicecatalogmanagement:
+    container_name: ${CONTAINER_PREFIX:-}cxo-service-catalog-management
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_HTTP_PORTS=8080
+    image: ${CXO_IMG_BASE_URL:-ghcr.io/codaxy}/cxo-service-catalog-management:${CXO_SERVICE_CATALOG_MANAGEMENT_TAG:-${CXO_TAG:-latest}}
+
+    ports:
+      - "40633:8080"
+    restart: unless-stopped
+    secrets:
+      - source: service-catalog-management-appsettings
+        target: /app/appsettings-mounted/0/appsettings.json
+    depends_on:
+      db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-sS",
+          "--fail",
+          "http://localhost:8080/health",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      cxo_network:
+        aliases:
+          - cxo-service-catalog-management
+
+  serviceordermanagement:
+    container_name: ${CONTAINER_PREFIX:-}cxo-service-order-management
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_HTTP_PORTS=8080
+    image: ${CXO_IMG_BASE_URL:-ghcr.io/codaxy}/cxo-service-order-management:${CXO_SERVICE_ORDER_MANAGEMENT_TAG:-${CXO_TAG:-latest}}
+
+    ports:
+      - "40641:8080"
+    restart: unless-stopped
+    secrets:
+      - source: service-order-management-appsettings
+        target: /app/appsettings-mounted/0/appsettings.json
+    depends_on:
+      db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-sS",
+          "--fail",
+          "http://localhost:8080/health",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      cxo_network:
+        aliases:
+          - cxo-service-order-management
+
+  serviceinventorymanagement:
+    container_name: ${CONTAINER_PREFIX:-}cxo-service-inventory-management
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_HTTP_PORTS=8080
+    image: ${CXO_IMG_BASE_URL:-ghcr.io/codaxy}/cxo-service-inventory-management:${CXO_SERVICE_INVENTORY_MANAGEMENT_TAG:-${CXO_TAG:-latest}}
+
+    ports:
+      - "40638:8080"
+    restart: unless-stopped
+    secrets:
+      - source: service-inventory-management-appsettings
+        target: /app/appsettings-mounted/0/appsettings.json
+    depends_on:
+      db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-sS",
+          "--fail",
+          "http://localhost:8080/health",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      cxo_network:
+        aliases:
+          - cxo-service-inventory-management
+
+  geographicsitemanagement:
+    container_name: ${CONTAINER_PREFIX:-}cxo-geographic-site-management
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_HTTP_PORTS=8080
+    image: ${CXO_IMG_BASE_URL:-ghcr.io/codaxy}/cxo-geographic-site-management:${CXO_GEOGRAPHIC_SITE_MANAGEMENT_TAG:-${CXO_TAG:-latest}}
+
+    ports:
+      - "40674:8080"
+    restart: unless-stopped
+    secrets:
+      - source: geographic-site-management-appsettings
+        target: /app/appsettings-mounted/0/appsettings.json
+    depends_on:
+      db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-sS",
+          "--fail",
+          "http://localhost:8080/health",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      cxo_network:
+        aliases:
+          - cxo-geographic-site-management
+
+  geographicaddressmanagement:
+    container_name: ${CONTAINER_PREFIX:-}cxo-geographic-address-management
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_HTTP_PORTS=8080
+    image: ${CXO_IMG_BASE_URL:-ghcr.io/codaxy}/cxo-geographic-address-management:${CXO_GEOGRAPHIC_ADDRESS_MANAGEMENT_TAG:-${CXO_TAG:-latest}}
+
+    ports:
+      - "40673:8080"
+    restart: unless-stopped
+    secrets:
+      - source: geographic-address-management-appsettings
+        target: /app/appsettings-mounted/0/appsettings.json
+    depends_on:
+      db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-sS",
+          "--fail",
+          "http://localhost:8080/health",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      cxo_network:
+        aliases:
+          - cxo-geographic-address-management
+
+  geographiclocationmanagement:
+    container_name: ${CONTAINER_PREFIX:-}cxo-geographic-location-management
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_HTTP_PORTS=8080
+    image: ${CXO_IMG_BASE_URL:-ghcr.io/codaxy}/cxo-geographic-location-management:${CXO_GEOGRAPHIC_LOCATION_MANAGEMENT_TAG:-${CXO_TAG:-latest}}
+
+    ports:
+      - "40675:8080"
+    restart: unless-stopped
+    secrets:
+      - source: geographic-location-management-appsettings
+        target: /app/appsettings-mounted/0/appsettings.json
+    depends_on:
+      db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-sS",
+          "--fail",
+          "http://localhost:8080/health",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      cxo_network:
+        aliases:
+          - cxo-geographic-location-management
+
+  resourceinventorymanagement:
+    container_name: ${CONTAINER_PREFIX:-}cxo-resource-inventory-management
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_HTTP_PORTS=8080
+    image: ${CXO_IMG_BASE_URL:-ghcr.io/codaxy}/cxo-resource-inventory-management:${CXO_RESOURCE_INVENTORY_MANAGEMENT_TAG:-${CXO_TAG:-latest}}
+
+    ports:
+      - "40639:8080"
+    restart: unless-stopped
+    secrets:
+      - source: resource-inventory-management-appsettings
+        target: /app/appsettings-mounted/0/appsettings.json
+    depends_on:
+      db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-sS",
+          "--fail",
+          "http://localhost:8080/health",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      cxo_network:
+        aliases:
+          - cxo-resource-inventory-management
+
+  resourcecatalogmanagement:
+    container_name: ${CONTAINER_PREFIX:-}cxo-resource-catalog-management
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_HTTP_PORTS=8080
+    image: ${CXO_IMG_BASE_URL:-ghcr.io/codaxy}/cxo-resource-catalog-management:${CXO_RESOURCE_CATALOG_MANAGEMENT_TAG:-${CXO_TAG:-latest}}
+
+    ports:
+      - "40634:8080"
+    restart: unless-stopped
+    secrets:
+      - source: resource-catalog-management-appsettings
+        target: /app/appsettings-mounted/0/appsettings.json
+    depends_on:
+      db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-sS",
+          "--fail",
+          "http://localhost:8080/health",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      cxo_network:
+        aliases:
+          - cxo-resource-catalog-management
+
+  resourceordermanagement:
+    container_name: ${CONTAINER_PREFIX:-}cxo-resource-order-management
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_HTTP_PORTS=8080
+    image: ${CXO_IMG_BASE_URL:-ghcr.io/codaxy}/cxo-resource-order-management:${CXO_RESOURCE_ORDER_MANAGEMENT_TAG:-${CXO_TAG:-latest}}
+
+    ports:
+      - "40652:8080"
+    restart: unless-stopped
+    secrets:
+      - source: resource-order-management-appsettings
+        target: /app/appsettings-mounted/0/appsettings.json
+    depends_on:
+      db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-sS",
+          "--fail",
+          "http://localhost:8080/health",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      cxo_network:
+        aliases:
+          - cxo-resource-order-management
+
+  resourcepoolmanagement:
+    container_name: ${CONTAINER_PREFIX:-}cxo-resource-pool-management
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_HTTP_PORTS=8080
+    image: ${CXO_IMG_BASE_URL:-ghcr.io/codaxy}/cxo-resource-pool-management:${CXO_RESOURCE_POOL_MANAGEMENT_TAG:-${CXO_TAG:-latest}}
+
+    ports:
+      - "40685:8080"
+    restart: unless-stopped
+    secrets:
+      - source: resource-pool-management-appsettings
+        target: /app/appsettings-mounted/0/appsettings.json
+    depends_on:
+      db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-sS",
+          "--fail",
+          "http://localhost:8080/health",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      cxo_network:
+        aliases:
+          - cxo-resource-pool-management
+
+  eventmanagement:
+    container_name: ${CONTAINER_PREFIX:-}cxo-event-management
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_HTTP_PORTS=8080
+    image: ${CXO_IMG_BASE_URL:-ghcr.io/codaxy}/cxo-event-management:${CXO_EVENT_MANAGEMENT_TAG:-${CXO_TAG:-latest}}
+
+    ports:
+      - "40688:8080"
+    restart: unless-stopped
+    secrets:
+      - source: event-management-appsettings
+        target: /app/appsettings-mounted/0/appsettings.json
+    depends_on:
+      db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-sS",
+          "--fail",
+          "http://localhost:8080/health",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      cxo_network:
+        aliases:
+          - cxo-event-management
+
+secrets:
+  service-catalog-management-appsettings:
+    file: settings/local/appsettings.ServiceCatalogManagement.json
+  user-roles-and-permissions-appsettings:
+    file: settings/local/appsettings.UserRolesAndPermissions.json
+  customer-management-appsettings:
+    file: settings/local/appsettings.CustomerManagement.json
+  party-role-management-appsettings:
+    file: settings/local/appsettings.PartyRoleManagement.json
+  digital-identity-appsettings:
+    file: settings/local/appsettings.DigitalIdentity.json
+  party-management-appsettings:
+    file: settings/local/appsettings.PartyManagement.json
+  service-order-management-appsettings:
+    file: settings/local/appsettings.ServiceOrderManagement.json
+  service-inventory-management-appsettings:
+    file: settings/local/appsettings.ServiceInventoryManagement.json
+  geographic-site-management-appsettings:
+    file: settings/local/appsettings.GeographicSiteManagement.json
+  geographic-address-management-appsettings:
+    file: settings/local/appsettings.GeographicAddressManagement.json
+  geographic-location-management-appsettings:
+    file: settings/local/appsettings.GeographicLocationManagement.json
+  resource-inventory-management-appsettings:
+    file: settings/local/appsettings.ResourceInventoryManagement.json
+  resource-catalog-management-appsettings:
+    file: settings/local/appsettings.ResourceCatalogManagement.json
+  resource-pool-management-appsettings:
+    file: settings/local/appsettings.ResourcePoolManagement.json
+  event-management-appsettings:
+    file: settings/local/appsettings.EventManagement.json
+  resource-order-management-appsettings:
+    file: settings/local/appsettings.ResourceOrderManagement.json

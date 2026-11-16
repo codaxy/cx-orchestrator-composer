@@ -1,0 +1,78 @@
+# Compose project name, fixed so the stack's volumes and containers keep their names whatever
+# this folder is called. Volume names start with it: changing it gives an existing installation
+# new, empty volumes. COMPOSE_PROJECT_NAME (e.g. in .env) still takes precedence.
+name: cxo-composer
+
+include:
+  - ./docker-compose.network.yml
+
+services:
+  conductordb:
+    restart: unless-stopped
+    container_name: ${CONTAINER_PREFIX:-}cxo-conductordb
+    image: ${HL_INFRA_IMG_BASE_URL:-docker.io/library}/postgres:15-bookworm
+    environment:
+      - TZ=${CXO_TZ:-Europe/Amsterdam}
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_USER=postgres
+      - PGDATA=/data/postgres
+    healthcheck:
+      test: pg_isready -U postgres
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    volumes:
+      - conductordb_pgdata_15:/data/postgres
+    networks:
+      cxo_network:
+        aliases:
+          - cxo-conductordb
+
+  conductor:
+    restart: unless-stopped
+    container_name: ${CONTAINER_PREFIX:-}cxo-conductor
+    environment:
+      - CONDUCTOR_NASHORN_ES6_ENABLED=true
+      - CONFIG_PROP=config.properties
+      - TZ=${CXO_TZ:-Europe/Amsterdam}
+    image: ${HL_INFRA_IMG_BASE_URL:-ghcr.io/codaxy}/conductor:server-3.32.5-rmq-kafka.1
+    ports:
+      - 48081:8080
+      - 45000:5000
+    healthcheck:
+      # curl, not wget: the 3.32.5 image is Debian-based and has no wget (the old Alpine one had both).
+      test:
+        [
+          "CMD",
+          "curl",
+          "-fsS",
+          "-o",
+          "/dev/null",
+          "http://localhost:8080/health",
+        ]
+      interval: 60s
+      timeout: 30s
+      retries: 12
+    depends_on:
+      conductordb:
+        condition: service_healthy
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1k"
+        max-file: "3"
+    secrets:
+      - source: conductor_config
+        target: /app/config/config.properties
+    networks:
+      cxo_network:
+        aliases:
+          - cxo-conductor
+
+secrets:
+  conductor_config:
+    file: files/conductor/config.properties
+
+volumes:
+  conductordb_pgdata_15: null

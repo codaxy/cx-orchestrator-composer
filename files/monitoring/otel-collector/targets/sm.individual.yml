@@ -1,0 +1,18 @@
+# Scrape targets for the Service Management services, as individual images.
+#
+# The cxo-services-http job reads one file per group through file_sd_configs, and
+# docker-compose.monitoring.yml mounts the variant CXO_SM_IMAGES selects (individual,
+# the default, or merged). Only what is running gets scraped, so parking the individual
+# services for a merged image raises no `up == 0` alerts, and the merged container is
+# scraped once rather than under every name it answers to.
+
+- targets: [servicecatalogmanagement:8080]
+  labels: { service: cxo-service-catalog-management }
+- targets: [serviceinventorymanagement:8080]
+  labels: { service: cxo-service-inventory-management }
+- targets: [serviceordermanagement:8080]
+  labels: { service: cxo-service-order-management }
+- targets: [serviceorderingengine:8080]
+  labels: { service: cxo-service-ordering-engine }
+- targets: [serviceactivationmanagement:8080]
+  labels: { service: cxo-service-activation-management }

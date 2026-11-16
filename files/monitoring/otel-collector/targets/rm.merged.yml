@@ -1,0 +1,9 @@
+# Scrape targets for the Resource Management services, as the one merged image.
+#
+# The cxo-services-http job reads one file per group through file_sd_configs, and
+# docker-compose.monitoring.yml mounts the variant CXO_RM_IMAGES selects (individual,
+# the default, or merged). Only what is running gets scraped, so parking the individual
+# services for a merged image raises no `up == 0` alerts, and the merged container is
+# scraped once rather than under every name it answers to.
+- targets: [cxo-resource-management:8080]
+  labels: { service: cxo-resource-management }

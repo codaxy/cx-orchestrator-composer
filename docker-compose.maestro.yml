@@ -1,0 +1,109 @@
+# CxMaestro as a drop-in replacement for Conductor.
+#
+# Selected with ./startup.sh maestro, ./startup.sh <target> --with-maestro, or by setting
+# CXO_ORCHESTRATOR=maestro directly. Each switches the include in
+# docker-compose.infrastructure.yml from docker-compose.conductor.yml to this file.
+#
+# The Compose service is called `maestro`, so the services that wait on the engine cannot name
+# it directly — a `depends_on: maestro` would not resolve under Conductor. Their depends_on
+# lives in the docker-compose.*.depends.*.yml overlays, picked by the same variable.
+#
+# `cxo-conductor` stays on the alias list. Every appsettings in the stack points at
+# http://cxo-conductor:8080, and the service name and the DNS name are separate decisions.
+
+# Compose project name, fixed so the stack's volumes and containers keep their names whatever
+# this folder is called. Volume names start with it: changing it gives an existing installation
+# new, empty volumes. COMPOSE_PROJECT_NAME (e.g. in .env) still takes precedence.
+name: cxo-composer
+
+include:
+  - ./docker-compose.network.yml
+
+services:
+  maestrodb:
+    restart: unless-stopped
+    container_name: ${CONTAINER_PREFIX:-}cxo-maestrodb
+    image: ${HL_INFRA_IMG_BASE_URL:-docker.io/library}/postgres:17-bookworm
+    # pg_stat_statements is what the Maestro Grafana dashboards query for queue and
+    # decider timings. Maestro's own docker/docker-compose.db.yml enables it the same way.
+    command: postgres -c shared_preload_libraries=pg_stat_statements -c pg_stat_statements.track=all -c max_connections=200
+    environment:
+      - TZ=${CXO_TZ:-Europe/Amsterdam}
+      - POSTGRES_DB=maestro
+      - POSTGRES_USER=maestro
+      - POSTGRES_PASSWORD=maestro
+      - PGDATA=/data/postgres
+    healthcheck:
+      test: pg_isready -U maestro
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    volumes:
+      - maestrodb_pgdata_17:/data/postgres
+    networks:
+      cxo_network:
+        aliases:
+          - cxo-maestrodb
+
+  maestro:
+    restart: unless-stopped
+    container_name: ${CONTAINER_PREFIX:-}cxo-maestro-api
+    image: ${CXO_IMG_BASE_URL:-ghcr.io/codaxy}/cx-maestro-alpha:${CXO_MAESTRO_TAG:-latest}
+    # Storage, engine and logging settings live in files/maestro/appsettings.json, mounted
+    # below. Only the few settings that cannot be read from there stay here.
+    environment:
+      - TZ=${CXO_TZ:-Europe/Amsterdam}
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8080
+      # Read by the OpenTelemetry SDK straight from the environment rather than through
+      # IConfiguration, so these two cannot move into the settings file with the rest.
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://cxo-otel-collector:4317
+      - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://cxo-otel-collector:4317
+    # Slot 0 of the layered configuration the engine reads. Slots 1 and 2 are free for a
+    # deployment to mount an environment-specific overlay on top, as with the CxO services.
+    secrets:
+      - source: maestro_appsettings
+        target: /app/appsettings-mounted/0/appsettings.json
+    ports:
+      # Both host ports Conductor used, pointing at the one container. The image serves the
+      # API and the portal from the same port — /api goes to the API, everything else to the
+      # portal — so Conductor's API URL and its separate UI URL both keep working without a
+      # second container.
+      - 48081:8080
+      - 45000:8080
+    # The image is Alpine-based: busybox wget is present, curl and bash are not.
+    # This is the same probe form docker-compose.conductor.yml uses, and Maestro serves
+    # /health on the API port, so the probe is unchanged from Conductor's.
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8080/health",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    depends_on:
+      maestrodb:
+        condition: service_healthy
+    networks:
+      cxo_network:
+        # `conductor` used to come for free as the Compose service name. It is listed now, so
+        # anything reaching the engine by that bare name keeps working.
+        aliases:
+          - conductor
+          - cxo-conductor
+          - cxo-maestro-api
+
+secrets:
+  maestro_appsettings:
+    file: files/maestro/appsettings.json
+
+volumes:
+  maestrodb_pgdata_17: null

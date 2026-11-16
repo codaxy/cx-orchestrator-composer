@@ -1,0 +1,10 @@
+esdata/*
+certs/*
+tmp-kcexport
+.idea
+.DS_Store
+.env
+.claude
+docker-compose.override.yml
+docker-compose.override.*.yml
+!docker-compose.override.sso.yml

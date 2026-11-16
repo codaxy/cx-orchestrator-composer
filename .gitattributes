@@ -1,0 +1,3 @@
+# Shell scripts should never be converted to CRLF, even on Windows, as 
+# they may end up in docker images (e.g. dockerfiles/certgen/certgen.sh)
+*.sh     text eol=lf

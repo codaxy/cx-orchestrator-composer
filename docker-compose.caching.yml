@@ -1,0 +1,26 @@
+# Compose project name, fixed so the stack's volumes and containers keep their names whatever
+# this folder is called. Volume names start with it: changing it gives an existing installation
+# new, empty volumes. COMPOSE_PROJECT_NAME (e.g. in .env) still takes precedence.
+name: cxo-composer
+
+include:
+  - ./docker-compose.network.yml
+
+services:
+  redis:
+    image: ${HL_INFRA_IMG_BASE_URL:-docker.io/library}/redis:7.2-alpine
+    container_name: ${CONTAINER_PREFIX:-}cxo-redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    ports:
+      - 63790:6379
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+    networks:
+      cxo_network:
+        aliases:
+          - cxo-redis
+
+volumes:
+  redis_data: null

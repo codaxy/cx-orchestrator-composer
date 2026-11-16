@@ -1,0 +1,92 @@
+# Docforgefile — how Cx Document Forge treats this repository.
+#
+# The format is described in Cx Document Forge's documentation (automating releases).
+# One site: the deployment guide in docs/guide/. The other pages under docs/
+# (logging and monitoring references) and the README stay readable in the
+# portal's space without being part of the site.
+version: 1
+
+# How the space reads in the portal. A page missing from here still appears,
+# under Uncategorized.
+navigation:
+  - title: Deployment guide
+    children:
+      - { path: docs/guide/index.md, title: Overview }
+      - { path: docs/guide/quick-start.md, title: Quick start }
+      - { path: docs/guide/what-runs.md, title: What runs }
+      - { path: docs/guide/configuration.md, title: Configuration }
+      - { path: docs/guide/deploying-to-a-server.md, title: Running on a shared host }
+      - { path: docs/guide/operations.md, title: Operations }
+      - { path: docs/guide/troubleshooting.md, title: Troubleshooting }
+  - title: Reference
+    children:
+      - { path: docs/monitoring/README.md, title: Monitoring }
+      - { path: docs/metrics-configuration.md, title: Metrics configuration }
+      - { path: docs/logging-tmf-services.md, title: "Logging: TMF services" }
+      - { path: docs/logging-engines.md, title: "Logging: engines" }
+  - title: Repository
+    children:
+      - { path: README.md, title: README }
+      - { path: CONTRIBUTING.md, title: Contributing }
+
+# The particulars that go on a PDF's cover and its notice page. No logo is
+# committed here, so the names are set in type.
+brand:
+  product: CxO
+  company: Codaxy
+  legal:
+    # {year} is substituted when the PDF is rendered.
+    copyright: "© {year} Codaxy. Licensed under the Apache License 2.0."
+    trademarks: >-
+      CxO and Codaxy Orchestrator are trademarks of Codaxy. All other product
+      and company names referenced in this document may be trademarks of their
+      respective owners.
+    disclaimer: >-
+      The information in this document is provided for informational purposes
+      only and is subject to change without notice. Codaxy makes no
+      representations or warranties, express or implied, regarding its accuracy
+      or completeness, and assumes no liability for any errors or omissions.
+    feedback: >-
+      We value your feedback. Please share comments at hello@codaxy.com.
+
+# The list is literal: a page added to docs/guide/ is not published until it is
+# named here, and a page named here that is missing fails the build.
+exports:
+  - name: deployment-guide
+    title: Cx Orchestrator Composer Deployment Guide
+    documents:
+      - { path: docs/guide/index.md, title: Overview }
+      - { path: docs/guide/quick-start.md, title: Quick start }
+      - { path: docs/guide/what-runs.md, title: What runs }
+      - { path: docs/guide/configuration.md, title: Configuration }
+      - { path: docs/guide/deploying-to-a-server.md, title: Running on a shared host }
+      - { path: docs/guide/operations.md, title: Operations }
+      - { path: docs/guide/troubleshooting.md, title: Troubleshooting }
+
+# The kinds of release, the same as every CxO release: this repository carries
+# the CxO release tags, so the guide a reader picks describes the compose files
+# that run the images of that release. 26q3 is a quarter (26q3-rc a candidate),
+# 26m11 a month, 26w46 a week; 26w46.1 is a patch release in that week.
+releases:
+  quarterly: '^(?<version>\d{2}q\d(?:\.\d+)?(?:-[0-9A-Za-z.]+)?)$'
+  monthly:   '^(?<version>\d{2}m\d{2})$'
+  weekly:    '^(?<version>\d{2}w\d{2}(?:\.\d+)?)$'
+
+# The site is made once in this repository's space, from Publish → Start from →
+# Sites declared in the Docforgefile. Tags never create it, and never grant
+# access: readers' organizations are given the site by hand.
+sites:
+  - slug: cx-orchestrator-composer-deployment-guide
+    name: Cx Orchestrator Composer Deployment Guide
+    export: deployment-guide
+    publish:
+      # Pushing a release tag publishes that version. `releases` is in the order
+      # readers are offered them, and the first is where they land: the newest
+      # quarterly, or until there is one, the newest monthly.
+      policy: auto
+      releases: [quarterly, monthly, weekly]
+      # Release candidates (26q3-rc) publish nothing.
+      skipPrerelease: true
+      # What a release changes is in the CxO release notes; this repository
+      # keeps none of its own.
+      releaseNotes: false

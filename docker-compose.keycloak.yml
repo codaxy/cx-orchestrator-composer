@@ -1,0 +1,53 @@
+# Compose project name, fixed so the stack's volumes and containers keep their names whatever
+# this folder is called. Volume names start with it: changing it gives an existing installation
+# new, empty volumes. COMPOSE_PROJECT_NAME (e.g. in .env) still takes precedence.
+name: cxo-composer
+
+include:
+  - ./docker-compose.network.yml
+
+services:
+  keycloak:
+    container_name: ${CONTAINER_PREFIX:-}local.keycloak.codaxy-cxo
+    restart: unless-stopped
+    image: ${HL_INFRA_IMG_BASE_URL:-ghcr.io/codaxy}/keycloak:26.5-curl
+    volumes:
+      - keycloak_db:/opt/keycloak/data/
+      - ./data/keycloak:/opt/keycloak/data/import
+      - ./data/keycloak/themes:/opt/keycloak/themes
+    environment:
+      - KC_BOOTSTRAP_ADMIN_USERNAME=admin
+      - KC_BOOTSTRAP_ADMIN_PASSWORD=admin
+    ports:
+      - "8080:8080"
+      - "49000:9000"
+    healthcheck:
+      test: curl --head -fsS http://localhost:9000/health/ready
+      interval: 10s
+      timeout: 5s
+      retries: 60
+      start_period: 10s
+
+    # TIP: While developing a custom theme, add the following options to the `entrypoint` collection below 
+    # to disable theme caching and see changes immediately without restarting the keycloak container:
+    #    "--spi-theme-static-max-age=-1",
+    #    "--spi-theme-cache-themes=false",
+    #    "--spi-theme-cache-templates=false"
+    entrypoint:
+      [
+        "/opt/keycloak/bin/kc.sh",
+        "start-dev",
+        "--health-enabled=true",
+        "--import-realm",
+        "--db-username",
+        "sa",
+        "--db-password",
+        "password",
+      ]
+    networks:
+      cxo_network:
+        aliases:
+          - local.keycloak.codaxy-cxo
+
+volumes:
+  keycloak_db: null

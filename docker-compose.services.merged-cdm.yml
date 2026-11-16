@@ -1,0 +1,90 @@
+# Opt-in override: run the merged Common Data Management image in place of the nine
+# uncategorised TMF services, settings, locking and audit.
+#
+# No consumer reconfiguration. Every consumer addresses those twelve by Docker DNS name, and the
+# merged image serves the same paths on the same port, so one container claims all twelve names
+# as network aliases and the individual services are parked behind a profile.
+#
+# Switching over requires removing the old containers first: they hold the published ports.
+
+services:
+  customermanagement:
+    profiles: ["replaced-by-merged-cdm"]
+  digitalidentity:
+    profiles: ["replaced-by-merged-cdm"]
+  eventmanagement:
+    profiles: ["replaced-by-merged-cdm"]
+  geographicaddressmanagement:
+    profiles: ["replaced-by-merged-cdm"]
+  geographiclocationmanagement:
+    profiles: ["replaced-by-merged-cdm"]
+  geographicsitemanagement:
+    profiles: ["replaced-by-merged-cdm"]
+  partymanagement:
+    profiles: ["replaced-by-merged-cdm"]
+  partyrolemanagement:
+    profiles: ["replaced-by-merged-cdm"]
+  userrolesandpermissions:
+    profiles: ["replaced-by-merged-cdm"]
+  lockingmanagement:
+    profiles: ["replaced-by-merged-cdm"]
+  cxosettings:
+    profiles: ["replaced-by-merged-cdm"]
+  audit:
+    profiles: ["replaced-by-merged-cdm"]
+
+  commondatamanagement:
+    container_name: ${CONTAINER_PREFIX:-}cxo-common-data-management
+    image: ${CXO_IMG_BASE_URL:-ghcr.io/codaxy}/cxo-common-data-management:${CXO_COMMON_DATA_MANAGEMENT_TAG:-${CXO_TAG:-latest}}
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_HTTP_PORTS=8080
+    restart: unless-stopped
+    secrets:
+      - source: common-data-management-appsettings
+        target: /app/appsettings-mounted/0/appsettings.json
+    depends_on:
+      db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    ports:
+      - "40629:8080" # was cxo-customer-management
+      - "40720:8080" # was cxo-digital-identity
+      - "40688:8080" # was cxo-event-management
+      - "40673:8080" # was cxo-geographic-address-management
+      - "40675:8080" # was cxo-geographic-location-management
+      - "40674:8080" # was cxo-geographic-site-management
+      - "40632:8080" # was cxo-party-management
+      - "40669:8080" # was cxo-party-role-management
+      - "40672:8080" # was cxo-user-roles-and-permissions
+      - "40210:8080" # was cxo-settings
+      - "40222:8080" # was cxo-locking-management
+      - "50222:8090" # was cxo-locking-management, h2c gRPC
+      - "40230:8080" # was cxo-audit
+    healthcheck:
+      test: ["CMD", "curl", "-sS", "--fail", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      cxo_network:
+        aliases:
+          - cxo-common-data-management
+          - cxo-customer-management
+          - cxo-digital-identity
+          - cxo-event-management
+          - cxo-geographic-address-management
+          - cxo-geographic-location-management
+          - cxo-geographic-site-management
+          - cxo-party-management
+          - cxo-party-role-management
+          - cxo-user-roles-and-permissions
+          - cxo-settings
+          - cxo-locking-management
+          - cxo-audit
+
+secrets:
+  common-data-management-appsettings:
+    file: settings/local/appsettings.CommonDataManagement.json

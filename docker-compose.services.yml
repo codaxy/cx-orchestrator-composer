@@ -1,0 +1,11 @@
+# Compose project name, fixed so the stack's volumes and containers keep their names whatever
+# this folder is called. Volume names start with it: changing it gives an existing installation
+# new, empty volumes. COMPOSE_PROJECT_NAME (e.g. in .env) still takes precedence.
+name: cxo-composer
+
+include:
+  - ./docker-compose.infrastructure.yml
+  - ./docker-compose.services.util.yml
+  - ./docker-compose.services.tmf.yml
+  - ./docker-compose.services.engines.yml
+  - ./docker-compose.api-gateway.yml

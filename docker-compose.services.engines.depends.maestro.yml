@@ -1,0 +1,18 @@
+# Engines that wait on the orchestration engine, for maestro. Passed with -f by
+# startup.sh; see README, "Start the stack", for why this is not an include.
+
+services:
+  serviceorderingengine:
+    depends_on:
+      maestro:
+        condition: service_healthy
+
+  serviceactivationmanagement:
+    depends_on:
+      maestro:
+        condition: service_healthy
+
+  resourceorderingengine:
+    depends_on:
+      maestro:
+        condition: service_healthy

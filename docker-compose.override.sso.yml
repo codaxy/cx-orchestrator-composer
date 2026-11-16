@@ -1,0 +1,10 @@
+services:
+  adminportal:
+    environment:
+      - OidcConfig__Authority=${CXO_SSO_AUTHORITY}
+      - OidcConfig__Issuer=${CXO_SSO_ISSUER}
+
+  tmfapigateway:
+    environment:
+      - OidcConfig__Authority=${CXO_SSO_AUTHORITY}
+      - OidcConfig__Issuer=${CXO_SSO_ISSUER}

@@ -1,0 +1,277 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "Live overview of every CxO alert rule and its current state. Grouped by state so you can see at a glance what's firing, what has no data yet, and what is healthy.",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [
+    {
+      "asDropdown": true,
+      "icon": "dashboard",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [
+        "cxo"
+      ],
+      "targetBlank": false,
+      "title": "All dashboards",
+      "type": "dashboards",
+      "url": ""
+    }
+  ],
+  "liveNow": true,
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 100,
+      "panels": [],
+      "title": "Needs attention",
+      "type": "row"
+    },
+    {
+      "type": "alertlist",
+      "title": "Firing",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 1
+      },
+      "id": 1,
+      "options": {
+        "showOptions": "current",
+        "maxItems": 50,
+        "sortOrder": 1,
+        "dashboardAlerts": false,
+        "alertName": "",
+        "stateFilter": {
+          "firing": true,
+          "pending": false,
+          "noData": false,
+          "normal": false,
+          "error": false
+        }
+      },
+      "description": "Alerts currently firing for the selected environment/instance."
+    },
+    {
+      "type": "alertlist",
+      "title": "Pending",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 1
+      },
+      "id": 2,
+      "options": {
+        "showOptions": "current",
+        "maxItems": 50,
+        "sortOrder": 1,
+        "dashboardAlerts": false,
+        "alertName": "",
+        "stateFilter": {
+          "firing": false,
+          "pending": true,
+          "noData": false,
+          "normal": false,
+          "error": false
+        }
+      },
+      "description": "Alerts whose condition is met but has not yet held for the rule evaluation period."
+    },
+    {
+      "type": "alertlist",
+      "title": "Error / NoData",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 1
+      },
+      "id": 3,
+      "options": {
+        "showOptions": "current",
+        "maxItems": 50,
+        "sortOrder": 1,
+        "dashboardAlerts": false,
+        "alertName": "",
+        "stateFilter": {
+          "firing": false,
+          "pending": false,
+          "noData": true,
+          "normal": false,
+          "error": true
+        }
+      },
+      "description": "Rules whose evaluation errors or returns no data — broken rules, not healthy ones."
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 9
+      },
+      "id": 200,
+      "panels": [],
+      "title": "All alert rules",
+      "type": "row"
+    },
+    {
+      "type": "alertlist",
+      "title": "Every rule in CxO Alerts",
+      "gridPos": {
+        "h": 14,
+        "w": 24,
+        "x": 0,
+        "y": 10
+      },
+      "id": 10,
+      "options": {
+        "showOptions": "current",
+        "maxItems": 100,
+        "sortOrder": 3,
+        "dashboardAlerts": false,
+        "alertName": "",
+        "stateFilter": {
+          "firing": true,
+          "pending": true,
+          "noData": true,
+          "normal": true,
+          "error": true
+        }
+      },
+      "description": "All CxO alert rules regardless of current state."
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 24
+      },
+      "id": 300,
+      "panels": [],
+      "title": "Recent state changes",
+      "type": "row"
+    },
+    {
+      "type": "alertlist",
+      "title": "Recent state changes (last 24h)",
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 25
+      },
+      "id": 20,
+      "options": {
+        "showOptions": "changes",
+        "maxItems": 50,
+        "sortOrder": 1,
+        "dashboardAlerts": false,
+        "alertName": "",
+        "stateFilter": {
+          "firing": true,
+          "pending": true,
+          "noData": true,
+          "normal": true,
+          "error": true
+        }
+      },
+      "description": "Alert state transitions in the last 24 hours."
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": [
+    "cxo",
+    "alerts",
+    "overview"
+  ],
+  "templating": {
+    "list": [
+      {
+        "current": {},
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "definition": "label_values(up, environment)",
+        "hide": 0,
+        "includeAll": false,
+        "label": "Environment",
+        "multi": false,
+        "name": "environment",
+        "options": [],
+        "query": {
+          "qryType": 1,
+          "query": "label_values(up, environment)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "current": {},
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "definition": "label_values(up{environment=~\"$environment\"}, cxo_instance)",
+        "hide": 0,
+        "includeAll": false,
+        "label": "CxO Instance",
+        "multi": false,
+        "name": "cxo_instance",
+        "options": [],
+        "query": {
+          "qryType": 1,
+          "query": "label_values(up{environment=~\"$environment\"}, cxo_instance)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "CxO Alerts Overview",
+  "uid": "cxo-alerts-overview",
+  "version": 1
+}

@@ -1,0 +1,93 @@
+# IMPORTANT: System Requirements
+# When running this pg-with-bouncer setup, at least 8GB of RAM is recommended and that is just looking at the database services
+# This is necessary to support PostgreSQL with 400 max_connections, pgbouncer connection pooling,
+# and the various database operations. Insufficient RAM may lead to performance degradation
+# or out-of-memory issues.
+
+services:
+  db:
+    container_name: ${CONTAINER_PREFIX:-}cxo-db
+    image: ${HL_INFRA_IMG_BASE_URL:-ghcr.io/codaxy}/pgbouncer:v1.25.2-cares
+    volumes:
+      - ./files/pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
+    ports:
+      - "40100:5432"
+    depends_on:
+      db-postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h localhost -p 5432"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    networks:
+      cxo_network:
+        aliases:
+          - cxo-db
+      cxo_internal_db_network:
+        aliases:
+          - cxo-db
+    restart: unless-stopped
+
+  db-postgres:
+    container_name: ${CONTAINER_PREFIX:-}cxo-db-postgres
+    image: ${HL_INFRA_IMG_BASE_URL:-docker.io/library}/postgres:15-bookworm
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      PGDATA: /data/postgres
+    volumes:
+      - psqlvolume:/data/postgres
+      - ./files/postgres/scripts:/docker-entrypoint-initdb.d:ro
+      - ./files/postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+      - ./files/postgres/pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
+    networks:
+      cxo_internal_db_network:
+        aliases:
+          - cxo-db-postgres
+    restart: unless-stopped
+    command:
+      [
+        "postgres",
+        "-c",
+        "config_file=/etc/postgresql/postgresql.conf",
+        "-c",
+        "hba_file=/etc/postgresql/pg_hba.conf",
+      ]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  pgadmin:
+    container_name: ${CONTAINER_PREFIX:-}cxo-pgadmin
+    image: ${HL_INFRA_IMG_BASE_URL:-docker.io/dpage}/pgadmin4:9.8
+    environment:
+      PGADMIN_DEFAULT_EMAIL: codaxy@codaxy.com
+      PGADMIN_DEFAULT_PASSWORD: codaxy
+    volumes:
+      - pgadminvolume:/root/.pgadmin
+    ports:
+      - "40250:80"
+    restart: unless-stopped
+    depends_on:
+      - db
+    # This will merge the network lists allowing pgadmin to access all databases
+    networks:
+      cxo_internal_db_network:
+        aliases:
+          - cxo-pgadmin
+volumes:
+  psqlvolume: null
+  pgadminvolume: null
+
+networks:
+  cxo_internal_db_network:
+    name: ${CONTAINER_PREFIX:-}cxo_internal_db_network
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.100.200.0/24

@@ -1,0 +1,423 @@
+apiVersion: 1
+
+groups:
+  # ───────────────────────────────────────────────────────────────────
+  # Availability
+  # ───────────────────────────────────────────────────────────────────
+  - orgId: 1
+    name: cxo-availability
+    folder: CxO Alerts
+    interval: 1m
+    rules:
+      - uid: cxo-service-health-failed
+        title: ServiceHealthFailed
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: prometheus
+            model:
+              expr: up{job="cxo-services-http"}
+              instant: true
+              refId: A
+          - refId: B
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              expression: A
+              reducer: last
+              refId: B
+          - refId: C
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: B
+              conditions:
+                - evaluator: { type: lt, params: [1] }
+              refId: C
+        for: 2m
+        noDataState: NoData
+        execErrState: Alerting
+        annotations:
+          summary: "Service {{ $labels.service }} is down (up == 0 for > 2 minutes)"
+        labels:
+          severity: critical
+          category: availability
+
+      - uid: cxo-service-down
+        title: ServiceDown
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 120, to: 0 }
+            datasourceUid: prometheus
+            model:
+              expr: up{job=~"cxo-services-.*"}
+              instant: true
+              refId: A
+          - refId: B
+            relativeTimeRange: { from: 120, to: 0 }
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              expression: A
+              reducer: last
+              refId: B
+          - refId: C
+            relativeTimeRange: { from: 120, to: 0 }
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: B
+              conditions:
+                - evaluator: { type: lt, params: [1] }
+              refId: C
+        for: 1m
+        noDataState: NoData
+        execErrState: Alerting
+        annotations:
+          summary: "Service {{ $labels.service }} is down (up == 0 for > 1 minute)"
+        labels:
+          severity: critical
+          category: availability
+
+  # ───────────────────────────────────────────────────────────────────
+  # Performance
+  # ───────────────────────────────────────────────────────────────────
+  - orgId: 1
+    name: cxo-performance
+    folder: CxO Alerts
+    interval: 1m
+    rules:
+      - uid: cxo-high-error-rate
+        title: HighErrorRate
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: prometheus
+            model:
+              expr: >-
+                sum(rate(http_server_request_duration_seconds_count{job="cxo-services-http", http_response_status_code=~"5.."}[5m]))
+                /
+                sum(rate(http_server_request_duration_seconds_count{job="cxo-services-http"}[5m]))
+              instant: true
+              refId: A
+          - refId: B
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              expression: A
+              reducer: last
+              refId: B
+          - refId: C
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: B
+              conditions:
+                - evaluator: { type: gt, params: [0.05] }
+              refId: C
+        for: 5m
+        noDataState: NoData
+        execErrState: Alerting
+        annotations:
+          summary: "5xx error rate exceeds 5% for cxo-services-http (current: {{ $value }})"
+        labels:
+          severity: warning
+          category: performance
+
+      - uid: cxo-high-p95-latency
+        title: HighP95Latency
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: prometheus
+            model:
+              expr: >-
+                histogram_quantile(0.95,
+                  sum by (service, le) (rate(http_server_request_duration_seconds_bucket{job=~"cxo-services-.*"}[5m]))
+                )
+              instant: true
+              refId: A
+          - refId: B
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              expression: A
+              reducer: last
+              refId: B
+          - refId: C
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: B
+              conditions:
+                - evaluator: { type: gt, params: [2] }
+              refId: C
+        for: 5m
+        noDataState: NoData
+        execErrState: Alerting
+        annotations:
+          summary: "Service {{ $labels.service }} P95 latency exceeds 2s (current: {{ $value }}s)"
+        labels:
+          severity: warning
+          category: performance
+
+      - uid: cxo-throughput-drop
+        title: ThroughputDrop
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: prometheus
+            model:
+              expr: >-
+                sum(rate(http_server_request_duration_seconds_count{job=~"cxo-services-.*"}[5m]))
+                /
+                clamp_min(sum(rate(http_server_request_duration_seconds_count{job=~"cxo-services-.*"}[5m] offset 1h)), 1e-9)
+              instant: true
+              refId: A
+          - refId: B
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              expression: A
+              reducer: last
+              refId: B
+          - refId: C
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: B
+              conditions:
+                - evaluator: { type: lt, params: [0.5] }
+              refId: C
+        for: 5m
+        noDataState: NoData
+        execErrState: Alerting
+        annotations:
+          summary: "Throughput dropped more than 50% vs. 1h ago (ratio: {{ $value }})"
+        labels:
+          severity: warning
+          category: performance
+
+  # ───────────────────────────────────────────────────────────────────
+  # Dependencies (auto-discovered via the `dependency` label)
+  # ───────────────────────────────────────────────────────────────────
+  - orgId: 1
+    name: cxo-dependencies
+    folder: CxO Alerts
+    interval: 1m
+    rules:
+      - uid: cxo-dependency-high-error-rate
+        title: DependencyHighErrorRate
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: prometheus
+            model:
+              expr: >-
+                100 *
+                  sum by (dependency) (rate(cxo_dependency_request_total{status=~"5xx|fault|error|timeout"}[5m]))
+                  /
+                  clamp_min(sum by (dependency) (rate(cxo_dependency_request_total[5m])), 1e-9)
+              instant: true
+              refId: A
+          - refId: B
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              expression: A
+              reducer: last
+              refId: B
+          - refId: C
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: B
+              conditions:
+                - evaluator: { type: gt, params: [5] }
+              refId: C
+        for: 5m
+        noDataState: NoData
+        execErrState: Alerting
+        annotations:
+          summary: "Dependency {{ $labels.dependency }} error rate is {{ $value }}% (threshold 5%)"
+        labels:
+          severity: warning
+          category: dependency
+
+      - uid: cxo-dependency-timeout-spike
+        title: DependencyTimeoutSpike
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: prometheus
+            model:
+              expr: sum by (dependency) (rate(cxo_dependency_timeout_total[5m]))
+              instant: true
+              refId: A
+          - refId: B
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              expression: A
+              reducer: last
+              refId: B
+          - refId: C
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: B
+              conditions:
+                - evaluator: { type: gt, params: [0.1] }
+              refId: C
+        for: 5m
+        noDataState: NoData
+        execErrState: Alerting
+        annotations:
+          summary: "Dependency {{ $labels.dependency }} timing out at {{ $value }}/s"
+        labels:
+          severity: warning
+          category: dependency
+
+      - uid: cxo-dependency-health-down
+        title: DependencyHealthDown
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 120, to: 0 }
+            datasourceUid: prometheus
+            model:
+              expr: cxo_dependency_health_status
+              instant: true
+              refId: A
+          - refId: B
+            relativeTimeRange: { from: 120, to: 0 }
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              expression: A
+              reducer: last
+              refId: B
+          - refId: C
+            relativeTimeRange: { from: 120, to: 0 }
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: B
+              conditions:
+                - evaluator: { type: lt, params: [1] }
+              refId: C
+        for: 2m
+        noDataState: NoData
+        execErrState: Alerting
+        annotations:
+          summary: "Dependency {{ $labels.dependency }} health check failing"
+        labels:
+          severity: warning
+          category: dependency
+
+  # ───────────────────────────────────────────────────────────────────
+  # Orders (business metrics — cxo_orders_*)
+  # ───────────────────────────────────────────────────────────────────
+  - orgId: 1
+    name: cxo-orders
+    folder: CxO Alerts
+    interval: 1m
+    rules:
+      - uid: cxo-order-failure-rate
+        title: OrderFailureRate
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 900, to: 0 }
+            datasourceUid: prometheus
+            model:
+              expr: >-
+                sum(rate(cxo_orders_failed_total[15m]))
+                /
+                clamp_min(sum(rate(cxo_orders_processed_total[15m])), 1e-9)
+              instant: true
+              refId: A
+          - refId: B
+            relativeTimeRange: { from: 900, to: 0 }
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              expression: A
+              reducer: last
+              refId: B
+          - refId: C
+            relativeTimeRange: { from: 900, to: 0 }
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: B
+              conditions:
+                - evaluator: { type: gt, params: [0.1] }
+              refId: C
+        for: 15m
+        noDataState: NoData
+        execErrState: Alerting
+        annotations:
+          summary: "Order failure rate exceeds 10% (current: {{ $value }})"
+        labels:
+          severity: warning
+          category: orders
+
+      - uid: cxo-order-processing-latency
+        title: OrderProcessingLatencyExceeded
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 900, to: 0 }
+            datasourceUid: prometheus
+            model:
+              expr: >-
+                histogram_quantile(0.95,
+                  sum by (le) (rate(cxo_order_processing_duration_seconds_bucket[15m]))
+                )
+              instant: true
+              refId: A
+          - refId: B
+            relativeTimeRange: { from: 900, to: 0 }
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              expression: A
+              reducer: last
+              refId: B
+          - refId: C
+            relativeTimeRange: { from: 900, to: 0 }
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: B
+              conditions:
+                - evaluator: { type: gt, params: [300] }
+              refId: C
+        for: 15m
+        noDataState: NoData
+        execErrState: Alerting
+        annotations:
+          summary: "Order P95 processing latency exceeds 300s (current: {{ $value }}s)"
+        labels:
+          severity: warning
+          category: orders

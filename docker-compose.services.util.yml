@@ -1,0 +1,139 @@
+# Partial docker-compose file, cannot be used on its own
+services:
+  cxosettings:
+    container_name: ${CONTAINER_PREFIX:-}cxo-settings
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_HTTP_PORTS=8080
+    image: ${CXO_IMG_BASE_URL:-ghcr.io/codaxy}/cxo-settings:${CXO_SETTINGS_TAG:-${CXO_TAG:-latest}}
+
+    ports:
+      - "40210:8080"
+    restart: unless-stopped
+    secrets:
+      - source: cxosettings-appsettings
+        target: /app/appsettings-mounted/0/appsettings.json
+    depends_on:
+      db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-sS",
+          "--fail",
+          "http://localhost:8080/health",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      cxo_network:
+        aliases:
+          - cxo-settings
+
+  lockingmanagement:
+    container_name: ${CONTAINER_PREFIX:-}cxo-locking-management
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_HTTP_PORTS=8080
+    image: ${CXO_IMG_BASE_URL:-ghcr.io/codaxy}/cxo-locking-management:${CXO_LOCKING_MANAGEMENT_TAG:-${CXO_TAG:-latest}}
+
+    restart: unless-stopped
+    ports:
+      - "40222:8080"
+      - "50222:8081"
+    secrets:
+      - source: locking-management-appsettings
+        target: /app/appsettings-mounted/0/appsettings.json
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sS", "--fail", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    networks:
+      cxo_network:
+        aliases:
+          - cxo-locking-management
+
+  resourcemanager:
+    container_name: ${CONTAINER_PREFIX:-}cxo-resource-manager
+    image: ${CXO_IMG_BASE_URL:-ghcr.io/codaxy}/cxo-resource-manager:${CXO_RESOURCE_MANAGER_TAG:-${CXO_TAG:-latest}}
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_HTTPS_PORTS=8081
+      - ASPNETCORE_Kestrel__Certificates__Default__Password=password
+      - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/aspnetapp.pfx
+    volumes:
+      - ./certs:/https:ro
+    ports:
+      - "40304:8081"
+    restart: unless-stopped
+    secrets:
+      - source: resourcemanager-appsettings
+        target: /app/appsettings-mounted/0/appsettings.json
+    depends_on:
+      resourcepoolmanagement:
+        condition: service_healthy
+      resourceinventorymanagement:
+        condition: service_healthy
+    networks:
+      cxo_network:
+        aliases:
+          - cxo-resource-manager
+    user: root # TODO: Remove this once we figure out what to do about pfx bind mounts.
+
+  # Deployments address this service by its key, `audit`; keep the name.
+  audit:
+    container_name: ${CONTAINER_PREFIX:-}cxo-audit
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_HTTP_PORTS=8080
+    image: ${CXO_IMG_BASE_URL:-ghcr.io/codaxy}/cxo-audit:${CXO_AUDIT_TAG:-${CXO_TAG:-latest}}
+
+    ports:
+      - "40230:8080"
+    restart: unless-stopped
+    secrets:
+      - source: audit-appsettings
+        target: /app/appsettings-mounted/0/appsettings.json
+    depends_on:
+      db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-sS",
+          "--fail",
+          "http://localhost:8080/health",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      cxo_network:
+        aliases:
+          - cxo-audit
+
+secrets:
+  locking-management-appsettings:
+    file: settings/local/appsettings.LockingManagement.json
+  cxosettings-appsettings:
+    file: settings/local/appsettings.CxoSettings.json
+  resourcemanager-appsettings:
+    file: settings/local/appsettings.ResourceManager.json
+  audit-appsettings:
+    file: settings/local/appsettings.CxoAudit.json

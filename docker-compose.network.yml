@@ -1,0 +1,4 @@
+networks:
+  cxo_network:
+    name: ${CONTAINER_PREFIX:-}cxo_network
+    driver: bridge

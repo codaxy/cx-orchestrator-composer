@@ -1,0 +1,70 @@
+# Opt-in override: run the merged Service Management image in place of SCM, SIM, SOM and SOE.
+#
+# No consumer reconfiguration. Every consumer addresses those four by Docker DNS name, and the
+# merged image serves exactly the same paths on the same ports, so one container claims all
+# four names as network aliases and the four individual services are parked behind a profile.
+# That is outcome 10: switching means pointing the names at the one image, nothing else.
+#
+#   docker compose -f docker-compose.yml ... -f docker-compose.services.merged-sm.yml up -d
+#
+# Each module keeps its own database. Four of the 58 SM tables share a name across modules
+# (related_party, note), so a single database fails to migrate — see
+# docs/unification/PLAN.md.
+
+services:
+  # A service carrying a profile does not start unless that profile is requested, and nothing
+  # in the stack depends_on these four, so nothing waits on them.
+  servicecatalogmanagement:
+    profiles: ["replaced-by-merged-sm"]
+  serviceinventorymanagement:
+    profiles: ["replaced-by-merged-sm"]
+  serviceordermanagement:
+    profiles: ["replaced-by-merged-sm"]
+  serviceorderingengine:
+    profiles: ["replaced-by-merged-sm"]
+  serviceactivationmanagement:
+    profiles: ["replaced-by-merged-sm"]
+
+  servicemanagement:
+    container_name: ${CONTAINER_PREFIX:-}cxo-service-management
+    image: ${CXO_IMG_BASE_URL:-ghcr.io/codaxy}/cxo-service-management:${CXO_SERVICE_MANAGEMENT_TAG:-${CXO_TAG:-latest}}
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+    restart: unless-stopped
+    secrets:
+      - source: service-management-appsettings
+        target: /app/appsettings-mounted/0/appsettings.json
+    depends_on:
+      db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    ports:
+      # The published ports the four services used, all onto the one container. 8090 is h2c
+      # for the ServiceWorkflows gRPC contract the admin portal speaks.
+      - "40633:8080" # was service catalog management
+      - "40638:8080" # was service inventory management
+      - "40641:8080" # was service order management
+      - "40211:8080" # was service ordering engine, http
+      - "50211:8090" # was service ordering engine, h2c gRPC
+      - "40640:8080" # was service activation management
+      - "50640:8090" # was service activation management, h2c gRPC
+    healthcheck:
+      test: ["CMD", "curl", "-sS", "--fail", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      cxo_network:
+        aliases:
+          - cxo-service-management
+          - cxo-service-catalog-management
+          - cxo-service-inventory-management
+          - cxo-service-order-management
+          - cxo-service-ordering-engine
+          - cxo-service-activation-management
+
+secrets:
+  service-management-appsettings:
+    file: settings/local/appsettings.ServiceManagement.json

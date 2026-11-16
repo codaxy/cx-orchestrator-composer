@@ -1,0 +1,32 @@
+# Scrape targets for the Common Data Management services, as individual images.
+#
+# The cxo-services-http job reads one file per group through file_sd_configs, and
+# docker-compose.monitoring.yml mounts the variant CXO_CDM_IMAGES selects (individual,
+# the default, or merged). Only what is running gets scraped, so parking the individual
+# services for a merged image raises no `up == 0` alerts, and the merged container is
+# scraped once rather than under every name it answers to.
+
+- targets: [partymanagement:8080]
+  labels: { service: cxo-party-management }
+- targets: [digitalidentity:8080]
+  labels: { service: cxo-digital-identity }
+- targets: [partyrolemanagement:8080]
+  labels: { service: cxo-party-role-management }
+- targets: [customermanagement:8080]
+  labels: { service: cxo-customer-management }
+- targets: [userrolesandpermissions:8080]
+  labels: { service: cxo-user-roles-and-permissions }
+- targets: [geographicsitemanagement:8080]
+  labels: { service: cxo-geographic-site-management }
+- targets: [geographicaddressmanagement:8080]
+  labels: { service: cxo-geographic-address-management }
+- targets: [geographiclocationmanagement:8080]
+  labels: { service: cxo-geographic-location-management }
+- targets: [eventmanagement:8080]
+  labels: { service: cxo-event-management }
+- targets: [lockingmanagement:8080]
+  labels: { service: cxo-locking-management }
+- targets: [cxosettings:8080]
+  labels: { service: cxo-settings }
+- targets: [audit:8080]
+  labels: { service: cxo-audit }

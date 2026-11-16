@@ -1,0 +1,92 @@
+include:
+  - ./docker-compose.services.yml # Actually, there are no dependencies on services here, but there probably should (will) be
+
+services:
+  adminportal:
+    container_name: ${CONTAINER_PREFIX:-}cxo-admin-portal
+    image: ${CXO_IMG_BASE_URL:-ghcr.io/codaxy}/cxo-admin-portal:${CXO_ADMIN_PORTAL_TAG:-${CXO_TAG:-latest}}
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_HTTPS_PORTS=8081
+      - ASPNETCORE_Kestrel__Certificates__Default__Password=password
+      - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/aspnetapp.pfx
+    volumes:
+      - ./certs:/https:ro
+    ports:
+      - "40300:8081"
+    restart: unless-stopped
+    secrets:
+      - source: admin-portal-appsettings
+        target: /app/appsettings-mounted/0/appsettings.json
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+      mcptools:
+        condition: service_healthy
+    networks:
+      cxo_network:
+        aliases:
+          - cxo-admin-portal
+    user: root # TODO: Remove this once we figure out what to do about pfx bind mounts.
+
+  mcptools:
+    container_name: ${CONTAINER_PREFIX:-}cxo-mcp-tools
+    image: ${CXO_IMG_BASE_URL:-ghcr.io/codaxy}/cxo-admin-portal-mcp-tools:${CXO_ADMIN_PORTAL_TAG:-${CXO_TAG:-latest}}
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_HTTP_PORTS=8080
+    ports:
+      - "40303:8080"
+    restart: unless-stopped
+    secrets:
+      - source: mcptools-appsettings
+        target: /app/appsettings-mounted/0/appsettings.json
+    healthcheck:
+      test: ["CMD", "curl", "-sS", "--fail", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      cxo_network:
+        aliases:
+          - cxo-mcp-tools
+
+  engineeringportal:
+    container_name: ${CONTAINER_PREFIX:-}cxo-engineering-portal
+    image: ${CXO_IMG_BASE_URL:-ghcr.io/codaxy}/cxo-engineering-portal:${CXO_ENGINEERING_PORTAL_TAG:-${CXO_TAG:-latest}}
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_HTTPS_PORTS=8081
+      - ASPNETCORE_Kestrel__Certificates__Default__Password=password
+      - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/aspnetapp.pfx
+      # The Statistics page queries the workflow metrics of the engine that runs.
+      - Statistics__Orchestrator=${CXO_ORCHESTRATOR:-conductor}
+    volumes:
+      - ./certs:/https:ro
+    ports:
+      - "40302:8081"
+    restart: unless-stopped
+    secrets:
+      - source: engineering-portal-appsettings
+        target: /app/appsettings-mounted/0/appsettings.json
+    depends_on:
+      keycloak:
+        condition: service_healthy
+    networks:
+      cxo_network:
+        aliases:
+          - cxo-engineering-portal
+    user: root # TODO: Remove this once we figure out what to do about pfx bind mounts.
+
+secrets:
+  admin-portal-appsettings:
+    file: settings/local/appsettings.AdminPortal.json
+  mcptools-appsettings:
+    file: settings/local/appsettings.McpTools.json
+  engineering-portal-appsettings:
+    file: settings/local/appsettings.EngineeringPortal.json

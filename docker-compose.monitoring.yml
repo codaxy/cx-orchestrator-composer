@@ -1,0 +1,156 @@
+# Compose project name, fixed so the stack's volumes and containers keep their names whatever
+# this folder is called. Volume names start with it: changing it gives an existing installation
+# new, empty volumes. COMPOSE_PROJECT_NAME (e.g. in .env) still takes precedence.
+name: cxo-composer
+
+include:
+  - ./docker-compose.network.yml
+
+services:
+  prometheus:
+    container_name: ${CONTAINER_PREFIX:-}cxo-prometheus
+    image: ${HL_INFRA_IMG_BASE_URL:-docker.io/prom}/prometheus:v3
+    # `--web.enable-remote-write-receiver` accepts the metrics pushed by the
+    # OTel Collector (which scrapes services and attaches the cxo_instance
+    # resource attribute as a label before pushing). The other flags
+    # reproduce the image's default CMD so we don't drop config-file /
+    # storage-path / web-console wiring.
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
+      - "--web.enable-remote-write-receiver"
+    volumes:
+      - ./files/monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheusdata:/prometheus
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+    networks:
+      cxo_network:
+        aliases:
+          - cxo-prometheus
+
+  grafana:
+    container_name: ${CONTAINER_PREFIX:-}cxo-grafana
+    image: ${HL_INFRA_IMG_BASE_URL:-docker.io/grafana}/grafana:13.0
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_UNIFIED_ALERTING_ENABLED: "true"
+      GF_ALERTING_ENABLED: "false"
+      # Land every visit on the CxO Home dashboard: one place to pick
+      # environment + instance; all links from there carry the selection.
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/cxo-home.json
+    volumes:
+      - ./files/monitoring/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./files/monitoring/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./files/monitoring/grafana/provisioning/alerting/rules.yml:/etc/grafana/provisioning/alerting/rules.yml:ro
+      - ./files/monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafanadata:/var/lib/grafana
+    ports:
+      - "43000:3000"
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+      - loki
+      - tempo
+    networks:
+      cxo_network:
+        aliases:
+          - cxo-grafana
+
+  loki:
+    container_name: ${CONTAINER_PREFIX:-}cxo-loki
+    image: ${HL_INFRA_IMG_BASE_URL:-docker.io/grafana}/loki:3
+    volumes:
+      - ./files/monitoring/loki/loki.yml:/etc/loki/local-config.yaml:ro
+      - lokidata:/loki
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    restart: unless-stopped
+    networks:
+      cxo_network:
+        aliases:
+          - cxo-loki
+
+  tempo:
+    container_name: ${CONTAINER_PREFIX:-}cxo-tempo
+    image: ${HL_INFRA_IMG_BASE_URL:-docker.io/grafana}/tempo:2.7.2
+    volumes:
+      - ./files/monitoring/tempo/tempo.yml:/etc/tempo/tempo.yml:ro
+      - tempodata:/var/tempo
+    ports:
+      - "3200:3200"
+    command: -config.file=/etc/tempo/tempo.yml
+    restart: unless-stopped
+    networks:
+      cxo_network:
+        aliases:
+          - cxo-tempo
+
+  postgres-exporter:
+    container_name: ${CONTAINER_PREFIX:-}cxo-postgres-exporter
+    image: ${HL_INFRA_IMG_BASE_URL:-docker.io/prometheuscommunity}/postgres-exporter:v0.15.0
+    environment:
+      DATA_SOURCE_NAME: "postgresql://postgres:postgres@cxo-db:5432/postgres?sslmode=disable"
+      PG_EXPORTER_EXTEND_QUERY_PATH: /etc/postgres-exporter/queries.yaml
+    volumes:
+      - ./files/monitoring/postgres-exporter/queries.yaml:/etc/postgres-exporter/queries.yaml:ro
+    restart: unless-stopped
+    networks:
+      cxo_network:
+        aliases:
+          - cxo-postgres-exporter
+
+  # Exports the orchestration engine's own database, whichever engine is selected by CXO_ORCHESTRATOR
+  postgres-exporter-orchestrator:
+    container_name: ${CONTAINER_PREFIX:-}cxo-postgres-exporter-orchestrator
+    image: ${HL_INFRA_IMG_BASE_URL:-docker.io/prometheuscommunity}/postgres-exporter:v0.15.0
+    environment:
+      DATA_SOURCE_NAME: "${CXO_ORCHESTRATOR_DB_DSN:-postgresql://postgres:postgres@cxo-conductordb:5432/postgres?sslmode=disable}"
+      PG_EXPORTER_EXTEND_QUERY_PATH: /etc/postgres-exporter/queries.yaml
+    volumes:
+      - ./files/monitoring/postgres-exporter/queries.yaml:/etc/postgres-exporter/queries.yaml:ro
+    restart: unless-stopped
+    networks:
+      cxo_network:
+        aliases:
+          - cxo-postgres-exporter-orchestrator
+
+  otel-collector:
+    container_name: ${CONTAINER_PREFIX:-}cxo-otel-collector
+    image: ${HL_INFRA_IMG_BASE_URL:-docker.io/otel}/opentelemetry-collector-contrib:0.151.0
+    # CXO_INSTANCE_NAME + CXO_ENVIRONMENT are consumed by the collector's
+    # `resource` processor (see files/monitoring/otel-collector/config.yml)
+    # to tag logs and traces with the originating CxO instance.
+    environment:
+      CXO_INSTANCE_NAME: ${CXO_INSTANCE_NAME:-local}
+      CXO_ENVIRONMENT: ${CXO_ENVIRONMENT:-local}
+    volumes:
+      - ./files/monitoring/otel-collector/config.yml:/etc/otelcol-contrib/config.yaml:ro
+      # Scrape targets per group. CXO_SM_IMAGES / CXO_RM_IMAGES / CXO_CDM_IMAGES pick the
+      # individual (default) or merged variant, to match docker-compose.services.merged-*.yml.
+      - ./files/monitoring/otel-collector/targets/platform.yml:/etc/otelcol-contrib/targets/platform.yml:ro
+      - ./files/monitoring/otel-collector/targets/sm.${CXO_SM_IMAGES:-individual}.yml:/etc/otelcol-contrib/targets/sm.yml:ro
+      - ./files/monitoring/otel-collector/targets/rm.${CXO_RM_IMAGES:-individual}.yml:/etc/otelcol-contrib/targets/rm.yml:ro
+      - ./files/monitoring/otel-collector/targets/cdm.${CXO_CDM_IMAGES:-individual}.yml:/etc/otelcol-contrib/targets/cdm.yml:ro
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+    command: --config=/etc/otelcol-contrib/config.yaml
+    restart: unless-stopped
+    depends_on:
+      - loki
+      - tempo
+    networks:
+      cxo_network:
+        aliases:
+          - cxo-otel-collector
+
+volumes:
+  prometheusdata: null
+  grafanadata: null
+  lokidata: null
+  tempodata: null

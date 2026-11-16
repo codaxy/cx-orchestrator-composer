@@ -1,0 +1,97 @@
+# Partial docker-compose file, cannot be used on its own
+services:
+  serviceorderingengine:
+    container_name: ${CONTAINER_PREFIX:-}cxo-service-ordering-engine
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_HTTP_PORTS=8080;8090
+    image: ${CXO_IMG_BASE_URL:-ghcr.io/codaxy}/cxo-service-ordering-engine:${CXO_SERVICE_ORDERING_ENGINE_TAG:-${CXO_TAG:-latest}}
+    restart: unless-stopped
+    ports:
+      - "40211:8080"
+      - "50211:8090" # HTTP/2
+    secrets:
+      - source: service-ordering-engine-appsettings
+        target: /app/appsettings-mounted/0/appsettings.json
+    depends_on:
+      db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sS", "--fail", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    networks:
+      cxo_network:
+        aliases:
+          - cxo-service-ordering-engine
+
+  serviceactivationmanagement:
+    container_name: ${CONTAINER_PREFIX:-}cxo-service-activation-management
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_HTTP_PORTS=8080;8090
+    image: ${CXO_IMG_BASE_URL:-ghcr.io/codaxy}/cxo-service-activation-management:${CXO_SERVICE_ACTIVATION_MANAGEMENT_TAG:-${CXO_TAG:-latest}}
+    restart: unless-stopped
+    ports:
+      - "40640:8080"
+      - "50640:8090" # HTTP/2
+    secrets:
+      - source: service-activation-management-appsettings
+        target: /app/appsettings-mounted/0/appsettings.json
+    depends_on:
+      db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sS", "--fail", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    networks:
+      cxo_network:
+        aliases:
+          - cxo-service-activation-management
+
+  resourceorderingengine:
+    container_name: ${CONTAINER_PREFIX:-}cxo-resource-ordering-engine
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_HTTP_PORTS=8080;8090
+    image: ${CXO_IMG_BASE_URL:-ghcr.io/codaxy}/cxo-resource-ordering-engine:${CXO_RESOURCE_ORDERING_ENGINE_TAG:-${CXO_TAG:-latest}}
+
+    restart: unless-stopped
+    ports:
+      - "40223:8080"
+      - "50223:8090" # HTTP/2
+    secrets:
+      - source: resource-ordering-engine-appsettings
+        target: /app/appsettings-mounted/0/appsettings.json
+    depends_on:
+      db:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sS", "--fail", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    networks:
+      cxo_network:
+        aliases:
+          - cxo-resource-ordering-engine
+
+secrets:
+  service-ordering-engine-appsettings:
+    file: settings/local/appsettings.ServiceOrderingEngine.json
+  service-activation-management-appsettings:
+    file: settings/local/appsettings.ServiceActivationManagement.json
+  resource-ordering-engine-appsettings:
+    file: settings/local/appsettings.ResourceOrderingEngine.json

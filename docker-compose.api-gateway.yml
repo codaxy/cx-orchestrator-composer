@@ -1,0 +1,32 @@
+services:
+  tmfapigateway:
+    container_name: ${CONTAINER_PREFIX:-}cxo-tmf-api-gateway
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_HTTP_PORTS=8080
+    image: ${CXO_IMG_BASE_URL:-ghcr.io/codaxy}/cxo-tmf-api-gateway:${CXO_TMF_API_GATEWAY_TAG:-${CXO_TAG:-latest}}
+    ports:
+      - "40600:8080"
+    restart: unless-stopped
+    secrets:
+      - source: tmf-api-gateway-appsettings
+        target: /app/appsettings-mounted/0/appsettings.json
+    depends_on:
+      redis:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sS", "--fail", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      cxo_network:
+        aliases:
+          - cxo-tmf-api-gateway
+
+secrets:
+  tmf-api-gateway-appsettings:
+    file: settings/local/appsettings.TmfApiGateway.json

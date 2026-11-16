@@ -1,0 +1,182 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+  # Direct scrape of every CxO service's /metrics endpoint. After the
+  # `resource` processor attaches cxo_instance / environment attributes, the
+  # `prometheusremotewrite/local` exporter pushes everything into the local
+  # Prometheus, which stores the series with the labels attached.
+  #
+  # Service labels mirror the legacy `prometheus.yml` job/labels so existing
+  # Grafana queries keep working.
+  prometheus:
+    config:
+      global:
+        scrape_interval: 15s
+        scrape_timeout: 10s
+      scrape_configs:
+        - job_name: cxo-services-http
+          metrics_path: /metrics
+          # One file per group, so a merged image can replace its group's targets. See targets/.
+          file_sd_configs:
+            - files:
+                - /etc/otelcol-contrib/targets/platform.yml
+                - /etc/otelcol-contrib/targets/sm.yml
+                - /etc/otelcol-contrib/targets/rm.yml
+                - /etc/otelcol-contrib/targets/cdm.yml
+
+        - job_name: cxo-services-https
+          metrics_path: /metrics
+          scheme: https
+          tls_config:
+            insecure_skip_verify: true
+          static_configs:
+            - targets: [adminportal:8081]
+              labels: { service: cxo-admin-portal }
+            - targets: [engineeringportal:8081]
+              labels: { service: cxo-engineering-portal }
+            - targets: [cxo-resource-manager:8081]
+              labels: { service: cxo-resource-manager }
+
+        # Only one orchestration engine runs at a time (CXO_ORCHESTRATOR). The job for
+        # the engine that is not running reports up=0; that is expected, not a fault.
+        # The two engines expose different metric names, so a dashboard built on one
+        # does not read the other.
+        - job_name: cxo-conductor
+          metrics_path: /actuator/prometheus
+          static_configs:
+            - targets: [cxo-conductor:8080]
+              labels: { service: cxo-conductor }
+
+        - job_name: cxo-maestro
+          metrics_path: /metrics
+          static_configs:
+            - targets: [cxo-maestro-api:8080]
+              labels: { service: cxo-maestro-api }
+
+        - job_name: cxo-postgres
+          static_configs:
+            - targets: [cxo-postgres-exporter:9187]
+              labels: { service: cxo-db, db_role: application }
+            - targets: [cxo-postgres-exporter-orchestrator:9187]
+              labels: { service: cxo-orchestrator-db, db_role: orchestrator }
+
+        # Broker / topic / consumer-group-lag metrics from kafka-exporter
+        # (see docker-compose.kafka.yml). Broker-internal JMX metrics
+        # (request rates, ISR churn, handler idle) are NOT covered here —
+        # those need a JMX exporter against the broker's port 9997.
+        - job_name: cxo-kafka
+          static_configs:
+            - targets: [cxo-kafka-exporter:9308]
+              labels: { service: cxo-kafka }
+
+processors:
+  batch:
+    timeout: 5s
+    send_batch_size: 1024
+
+  # Per-deployment identity. Attached to every signal so Grafana dashboards
+  # can filter by which CxO instance the data came from. Expanded from
+  # CXO_INSTANCE_NAME / CXO_ENVIRONMENT env vars at collector startup
+  # (see docker-compose.monitoring.yml). Defaults preserve the original
+  # single-instance dev behavior.
+  resource:
+    attributes:
+      - key: cxo_instance
+        value: ${env:CXO_INSTANCE_NAME}
+        action: upsert
+      - key: environment
+        value: ${env:CXO_ENVIRONMENT}
+        action: upsert
+
+  filter/cxo_metrics:
+    metrics:
+      include:
+        match_type: regexp
+        metric_names:
+          - "cxo_.*"
+          - "http_server_.*"
+          - "process_.*"
+          - "dotnet_.*"
+          - "kestrel_.*"
+          # kafka-exporter series, so enabling this filter doesn't silently
+          # blank the CxO Kafka dashboard.
+          - "kafka_.*"
+          # postgres-exporter series, same reasoning.
+          - "pg_.*"
+
+exporters:
+  # Push scraped metrics into the local Prometheus after the `resource`
+  # processor has tagged them with cxo_instance / environment. Prometheus
+  # accepts these via `--web.enable-remote-write-receiver` (set in
+  # docker-compose.monitoring.yml). `resource_to_telemetry_conversion`
+  # promotes resource attributes to series labels so the dashboard filter
+  # `cxo_instance=~"$cxo_instance"` can match.
+  prometheusremotewrite/local:
+    endpoint: http://cxo-prometheus:9090/api/v1/write
+    tls:
+      insecure: true
+    resource_to_telemetry_conversion:
+      enabled: true
+
+  otlp_http/loki:
+    endpoint: http://cxo-loki:3100/otlp
+    tls:
+      insecure: true
+
+  otlp_grpc/tempo:
+    endpoint: cxo-tempo:4317
+    tls:
+      insecure: true
+
+  debug:
+    verbosity: basic
+
+  # Optional fan-out: forward metrics to an upstream / central monitoring
+  # backend (e.g. a long-term store or a multi-tenant aggregation point).
+  # Uncomment and configure per deployment.
+  #
+  # Example — Prometheus-compatible (Mimir, Thanos, Cortex, VictoriaMetrics):
+  # prometheusremotewrite/external:
+  #   endpoint: "https://mimir.example.com/api/v1/push"
+  #   tls:
+  #     insecure: false
+  #   headers:
+  #     X-Scope-OrgID: "cxo-tenant"
+  #
+  # Example — Datadog:
+  # datadog/external:
+  #   api:
+  #     key: "${DATADOG_API_KEY}"
+  #     site: "datadoghq.eu"
+  #
+  # Example — any OTLP-compatible backend:
+  # otlp_http/external_metrics:
+  #   endpoint: "https://otlp.example.com:4318"
+  #   headers:
+  #     Authorization: "Bearer ${EXTERNAL_API_KEY}"
+
+service:
+  telemetry:
+    logs:
+      level: info
+  pipelines:
+    logs:
+      receivers: [otlp]
+      processors: [batch, resource]
+      exporters: [otlp_http/loki, debug]
+    traces:
+      receivers: [otlp]
+      processors: [resource, batch]
+      exporters: [otlp_grpc/tempo]
+    metrics:
+      receivers: [prometheus]
+      processors: [resource, batch]
+      exporters: [prometheusremotewrite/local]
+      # To also forward externally (e.g. central Mimir), append a second
+      # exporter and define it above:
+      # exporters: [prometheusremotewrite/local, prometheusremotewrite/external]

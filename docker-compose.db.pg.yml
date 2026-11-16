@@ -1,0 +1,45 @@
+services:
+  db:
+    container_name: ${CONTAINER_PREFIX:-}cxo-db
+    image: ${HL_INFRA_IMG_BASE_URL:-docker.io/library}/postgres:15-bookworm
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      PGDATA: /data/postgres
+    volumes:
+      - psqlvolume:/data/postgres
+    ports:
+      - "40100:5432"
+    healthcheck:
+      test: pg_isready -U postgres
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      cxo_network:
+        aliases:
+          - cxo-db
+
+  pgadmin:
+    container_name: ${CONTAINER_PREFIX:-}cxo-pgadmin
+    image: ${HL_INFRA_IMG_BASE_URL:-docker.io/dpage}/pgadmin4:9.8
+    environment:
+      PGADMIN_DEFAULT_EMAIL: codaxy@codaxy.com
+      PGADMIN_DEFAULT_PASSWORD: codaxy
+    volumes:
+      - pgadminvolume:/root/.pgadmin
+    ports:
+      - "40250:80"
+    restart: unless-stopped
+    depends_on:
+      - db
+    networks:
+      cxo_network:
+        aliases:
+          - cxo-pgadmin
+
+volumes:
+  psqlvolume: null
+  pgadminvolume: null
